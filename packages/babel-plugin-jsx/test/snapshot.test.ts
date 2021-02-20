@@ -147,6 +147,13 @@ const tests: Test[] = [
     name: 'use "model" as the prop name',
     from: '<C v-model={[foo, "model"]} />',
   },
+  {
+    name: 'use "@jsx" comment specify pragma',
+    from: `
+      /* @jsx custom */
+      <div id="custom">Hello</div>
+    `,
+  },
 ];
 
 tests.forEach((
@@ -224,6 +231,25 @@ objectSlotsTests.forEach(({
     `disable object slot syntax with ${name}`,
     async () => {
       expect(await transpile(from, { optimize: true, enableObjectSlots: false }))
+        .toMatchSnapshot(name);
+    },
+  );
+});
+
+const pragmaTests = [
+  {
+    name: 'custom',
+    from: '<div>pragma</div>',
+  },
+];
+
+pragmaTests.forEach(({
+  name, from,
+}) => {
+  test(
+    `set pragma to ${name}`,
+    async () => {
+      expect(await transpile(from, { pragma: 'custom' }))
         .toMatchSnapshot(name);
     },
   );

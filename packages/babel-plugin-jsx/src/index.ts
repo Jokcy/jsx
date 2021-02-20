@@ -13,6 +13,7 @@ export type State = {
   get: (name: string) => any;
   set: (name: string, value: any) => any;
   opts: VueJSXPluginOptions;
+  file: any
 };
 
 export interface VueJSXPluginOptions {
@@ -26,13 +27,15 @@ export interface VueJSXPluginOptions {
   isCustomElement?: (tag: string) => boolean;
   /** enable object slots syntax */
   enableObjectSlots?: boolean;
+  /** Replace the function used when compiling JSX expressions */
+  pragma?: string;
 }
 
 export type ExcludesBoolean = <T>(x: T | false | true) => x is T;
 
 const HMR_INJECT_NAME = '$HotMoudleId$';
 
-const hasJSX = (parentPath: NodePath) => {
+const hasJSX = (parentPath: NodePath<t.Program>) => {
   let fileHasJSX = false;
   parentPath.traverse({
     JSXElement(path) {
@@ -48,6 +51,8 @@ const hasJSX = (parentPath: NodePath) => {
 
   return fileHasJSX;
 };
+
+const JSX_ANNOTATION_REGEX = /\*?\s*@jsx\s+([^\s]+)/;
 
 export default ({ types }: typeof BabelCore) => ({
   name: 'babel-plugin-jsx',
@@ -72,7 +77,7 @@ export default ({ types }: typeof BabelCore) => ({
       }
     },
     Program: {
-      enter(path: NodePath, state: State) {
+      enter(path: NodePath<t.Program>, state: State) {
         if (hasJSX(path)) {
           const importNames = [
             'createVNode',
@@ -145,6 +150,21 @@ export default ({ types }: typeof BabelCore) => ({
                 );
               });
             });
+          }
+
+          if (state.opts.pragma) {
+            state.set('createVNode', () => t.identifier(state.opts.pragma!));
+          }
+
+          const comments = state.file.ast.comments || [];
+
+          for (let i = 0; i < comments.length; i++) {
+            const comment = comments[i];
+
+            const jsxMatches = JSX_ANNOTATION_REGEX.exec(comment.value);
+            if (jsxMatches) {
+              state.set('createVNode', () => t.identifier(jsxMatches[1]));
+            }
           }
         }
       },
